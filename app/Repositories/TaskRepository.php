@@ -3,26 +3,35 @@
 namespace App\Repositories;
 
 use App\Models\Task;
+use App\Models\User;
 use App\Repositories\Interfaces\TaskRepositoryInterface;
+
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 
 class TaskRepository implements TaskRepositoryInterface
 {
-    public function getByDate($userId, $date)
+    public function getUserTasksByDate(User $user, Carbon $date, ?string $query = null): LengthAwarePaginator
     {
-        return Task::where('user_id', $userId)
-            ->whereDate('task_date', $date)
-            ->orderBy('position')
-            ->get();
+        return Cache::remember(
+            "tasks:{$user->id}:{$date->toDateString()}",
+            60,
+            function () use ($user, $date, $query) {
+                return Task::query()
+                    ->where('user_id', $user->id)
+                    ->whereDate('task_date', $date)
+                    ->when(filled($query), function ($q) use ($query) {
+                        $q->where('statement', 'like', "%{$query}%");
+                    })
+                    ->orderBy('position')
+                    ->paginate(20);
+            }
+        );
     }
 
-    public function search($userId, $query)
-    {
-        return Task::where('user_id', $userId)
-            ->where('statement', 'like', "%$query%")
-            ->get();
-    }
-
-    public function create(array $data)
+    public function create(Task $data)
     {
         return Task::create($data);
     }
@@ -33,12 +42,12 @@ class TaskRepository implements TaskRepositoryInterface
         return $task;
     }
 
-    public function delete($task)
+    public function delete(Task $task)
     {
         return $task->delete();
     }
 
-    public function reorder(array $tasks)
+    public function reorder(Task $tasks)
     {
         foreach ($tasks as $item) {
             Task::where('id', $item['id'])

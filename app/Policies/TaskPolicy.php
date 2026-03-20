@@ -13,7 +13,7 @@ class TaskPolicy
      */
     public function viewAny(User $user): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -21,7 +21,7 @@ class TaskPolicy
      */
     public function view(User $user, Task $task): bool
     {
-        return false;
+        return $user->id === $task->user_id;
     }
 
     /**
@@ -29,7 +29,7 @@ class TaskPolicy
      */
     public function create(User $user): bool
     {
-        return false;
+        return true;
     }
 
     /**
@@ -52,6 +52,22 @@ class TaskPolicy
      * Determine whether the user can restore the model.
      */
     public function restore(User $user, Task $task): bool
+    {
+        return $user->id === $task->user_id;
+    }
+
+    /**
+     * Determine whether the user can reorder the model.
+     */
+    public function reorder(User $user): bool
+    {
+        return true;
+    }
+
+    /**
+     * Determine whether the user can toggle the model.
+     */
+    public function toggle(User $user, Task $task): bool
     {
         return $user->id === $task->user_id;
     }

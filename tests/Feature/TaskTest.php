@@ -4,9 +4,9 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use App\Models\Task;
-// use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 
-// uses(RefreshDatabase::class);
+uses(RefreshDatabase::class);
 
 describe('Task API', function () {
 
@@ -80,23 +80,6 @@ describe('Task API', function () {
         $response->assertStatus(403);
     });
 
-    it('can search tasks', function () {
-        $user = User::factory()->create();
-
-        Task::factory()->create([
-            'user_id' => $user->id,
-            'statement' => 'Call client'
-        ]);
-
-        $response = $this->actingAs($user)
-            ->getJson('/api/tasks/search?q=Call');
-
-        $response->assertStatus(200)
-            ->assertJsonFragment([
-                'statement' => 'Call client'
-            ]);
-    });
-
     it('fails when statement is missing', function () {
         $user = User::factory()->create();
 
@@ -118,6 +101,119 @@ describe('Task API', function () {
             ->assertStatus(200);
 
         expect($task->fresh()->is_completed)->toBeTrue();
+    });
+
+    it('can search tasks', function () {
+        $user = User::factory()->create();
+
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'statement' => 'Call client',
+            'task_date' => now()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/tasks?q=Call&date=' . now()->toDateString());
+
+        $response->assertStatus(200)
+            ->assertJsonFragment([
+                'statement' => 'Call client'
+            ]);
+    });
+
+    it('can filter tasks by date', function () {
+        $user = User::factory()->create();
+
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'statement' => 'Today task',
+            'task_date' => now()->toDateString(),
+        ]);
+
+        Task::factory()->create([
+            'user_id' => $user->id,
+            'statement' => 'Other day',
+            'task_date' => now()->subDay()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/tasks?date=' . now()->toDateString());
+
+        $response->assertStatus(200)
+            ->assertJsonFragment(['statement' => 'Today task'])
+            ->assertJsonMissing(['statement' => 'Other day']);
+    });
+
+    it('cannot see other users tasks in index', function () {
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        Task::factory()->create([
+            'user_id' => $user1->id,
+            'statement' => 'Private task',
+            'task_date' => now()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user2)
+            ->getJson('/api/tasks?date=' . now()->toDateString());
+
+        $response->assertStatus(200)
+            ->assertJsonMissing(['statement' => 'Private task']);
+    });
+
+    it('returns paginated tasks', function () {
+        $user = User::factory()->create();
+
+        Task::factory()->count(25)->create([
+            'user_id' => $user->id,
+            'task_date' => now()->toDateString(),
+        ]);
+
+        $response = $this->actingAs($user)
+            ->getJson('/api/tasks?date=' . now()->toDateString());
+
+        $response->assertStatus(200)
+            ->assertJsonStructure([
+                'data',
+                'links',
+                'meta'
+            ]);
+    });
+
+    it('cannot delete another users task', function () {
+        $user1 = User::factory()->create();
+        $user2 = User::factory()->create();
+
+        $task = Task::factory()->create([
+            'user_id' => $user1->id
+        ]);
+
+        $this->actingAs($user2)
+            ->deleteJson("/api/tasks/{$task->id}")
+            ->assertStatus(403);
+    });
+
+    it('can reorder tasks', function () {
+        $user = User::factory()->create();
+
+        $tasks = Task::factory()->count(3)->create([
+            'user_id' => $user->id
+        ]);
+
+        $orderedIds = $tasks->pluck('id')->reverse()->values()->toArray();
+
+        $this->actingAs($user)
+            ->postJson('/api/tasks/reorder', [
+                'tasks' => $orderedIds
+            ])
+            ->assertStatus(200);
+
+        foreach ($orderedIds as $index => $id) {
+            $this->assertDatabaseHas('tasks', [
+                'id' => $id,
+                'position' => $index
+            ]);
+        }
     });
 
 });

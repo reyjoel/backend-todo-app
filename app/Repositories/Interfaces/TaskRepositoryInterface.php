@@ -2,12 +2,16 @@
 
 namespace App\Repositories\Interfaces;
 
+use App\Models\User;
+use App\Models\Task;
+use Carbon\Carbon;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
+
 interface TaskRepositoryInterface
 {
-    public function getByDate($userId, $date);
-    public function search($userId, $query);
-    public function create(array $data);
-    public function update($task, array $data);
-    public function delete($task);
-    public function reorder(array $tasks);
+    public function getUserTasksByDate(User $user, Carbon $date, ?string $query = null): LengthAwarePaginator;
+    public function create(Task $data);
+    public function update(Task $task, array $data);
+    public function delete(Task $task);
+    public function reorder(Task $tasks);
 }

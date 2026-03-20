@@ -2,27 +2,37 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\Task;
+use App\Services\TaskService;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreTaskRequest;
 use App\Http\Requests\UpdateTaskRequest;
+use App\Http\Requests\IndexTaskRequest;
 use App\Http\Resources\TaskResource;
-use App\Models\Task;
 use Illuminate\Http\Request;
 use App\Repositories\Interfaces\TaskRepositoryInterface;
 
 
 class TaskController extends Controller
 {
-    public function __construct(private TaskRepositoryInterface $taskRepo) {}
+    public function __construct(
+        private TaskRepositoryInterface $taskRepo,
+        protected TaskService $taskService
+    ) {}
 
     /**
      * Display a listing of the resource.
      */
-    public function index(Request $request)
+    public function index(IndexTaskRequest $request)
     {
-        $tasks = $this->taskRepo->getByDate(
-            $request->user()->id,
-            $request->date
+        $this->authorize('viewAny', Task::class);
+
+        $date = $request->date ? now()->parse($request->date) : now();
+
+        $tasks = $this->taskRepo->getUserTasksByDate(
+            $request->user(),
+            $date,
+            $request->q
         );
 
         return TaskResource::collection($tasks);
@@ -33,10 +43,10 @@ class TaskController extends Controller
      */
     public function store(StoreTaskRequest $request)
     {
-        $data = $request->validated();
-        $data['user_id'] = $request->user()->id;
-
-        $task = $this->taskRepo->create($data);
+        $task = $this->taskService->create(
+            $request->user(),
+            $request->validated()
+        );
 
         return new TaskResource($task);
     }
@@ -44,9 +54,9 @@ class TaskController extends Controller
     /**
      * Display the specified resource.
      */
-    public function show(string $id)
+    public function show(Task $task)
     {
-        //
+        return new TaskResource($task);
     }
 
     /**
@@ -55,8 +65,7 @@ class TaskController extends Controller
     public function update(UpdateTaskRequest $request, Task $task)
     {
         $this->authorize('update', $task);
-
-        $task = $this->taskRepo->update($task, $request->validated());
+        $task = $this->taskService->update($task, $request->validated());
 
         return new TaskResource($task);
     }
@@ -68,35 +77,32 @@ class TaskController extends Controller
     {
         $this->authorize('delete', $task);
 
-        $this->taskRepo->delete($task);
+        $this->taskService->delete($task);
 
         return response()->json(['message' => 'Deleted']);
     }
 
     public function toggle(Task $task)
     {
-        $this->authorize('update', $task);
+        $this->authorize('toggle', $task);
 
-        $task->update([
-            'is_completed' => !$task->is_completed
-        ]);
+        $task = $this->taskService->toggle($task);
 
         return new TaskResource($task);
     }
 
-    public function search(Request $request)
-    {
-        $tasks = $this->taskRepo->search(
-            $request->user()->id,
-            $request->q
-        );
-
-        return TaskResource::collection($tasks);
-    }
-
     public function reorder(Request $request)
     {
-        $this->taskRepo->reorder($request->tasks);
+        $this->authorize('reorder', Task::class);
+
+        $request->validate([
+            'tasks' => ['required', 'array']
+        ]);
+
+        $this->taskService->reorder(
+            $request->user(),
+            $request->tasks
+        );
 
         return response()->json(['message' => 'Reordered']);
     }

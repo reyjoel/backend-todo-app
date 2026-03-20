@@ -23,8 +23,8 @@ class TaskFactory extends Factory
             'statement' => fake()->sentence(),
             'is_completed' => false,
             'task_date' => now(),
-            'priority' => 1,
-            'position' => 1,
+            'priority' => 0,
+            'position' => 0,
         ];
     }
 }
