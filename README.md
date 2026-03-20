@@ -61,7 +61,7 @@ Authorization: Bearer {token}
 
 ### Tasks (Protected)
 
-* `GET /api/tasks`
+* `GET /api/tasks?date=2026-03-20&q=test`
 * `POST /api/tasks`
 * `GET /api/tasks/{id}`
 * `PUT /api/tasks/{id}`
@@ -69,7 +69,6 @@ Authorization: Bearer {token}
 
 ### Custom
 
-* `GET /api/tasks/search?q=...`
 * `PATCH /api/tasks/{task}/toggle`
 * `POST /api/tasks/reorder`
 
@@ -123,28 +122,4 @@ php artisan test
 
 ---
 
-## 🚀 Future Improvements
-
-* Add Service Layer for business logic
-* Implement Policies for authorization
-* Add caching for task queries
-* Introduce full-text search
-* Add pagination support
-* Improve test coverage
-* Add API versioning (`/api/v1`)
-* Dockerize application
-
 ---
-
-## ⚖️ Tradeoffs
-
-* Repository pattern introduced early for scalability
-* Sanctum chosen for simplicity over OAuth
-* No caching yet to keep system simple
-
----
-
-## 👨‍💻 Author Notes
-
-This project is structured to evolve into a production-ready system.
-The current implementation prioritizes clarity and extensibility over premature optimization.
