@@ -15,20 +15,14 @@ class TaskRepository implements TaskRepositoryInterface
 {
     public function getUserTasksByDate(User $user, Carbon $date, ?string $query = null): LengthAwarePaginator
     {
-        return Cache::remember(
-            "tasks:{$user->id}:{$date->toDateString()}",
-            60,
-            function () use ($user, $date, $query) {
-                return Task::query()
-                    ->where('user_id', $user->id)
-                    ->whereDate('task_date', $date)
-                    ->when(filled($query), function ($q) use ($query) {
-                        $q->where('statement', 'like', "%{$query}%");
-                    })
-                    ->orderBy('position')
-                    ->paginate(20);
-            }
-        );
+        return Task::query()
+            ->where('user_id', $user->id)
+            ->whereDate('task_date', $date)
+            ->when(filled($query), fn ($q) =>
+                $q->where('statement', 'like', "%{$query}%")
+            )
+            ->orderBy('position')
+            ->paginate(20);
     }
 
     public function create(Task $data)
